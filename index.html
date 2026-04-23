@@ -500,21 +500,38 @@ function addTool() {
 
 function rmtool(btn) { btn.parentElement.remove(); }
 
+function compressImage(file, maxW, maxH, quality, cb) {
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var img = new Image();
+    img.onload = function() {
+      var canvas = document.createElement('canvas');
+      var w = img.width, h = img.height;
+      if (w > maxW) { h = h * maxW / w; w = maxW; }
+      if (h > maxH) { w = w * maxH / h; h = maxH; }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      cb(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function prevFiles(inp) {
   var grid = document.getElementById('prev-grid');
   var clearBtn = document.getElementById('clear-photos-btn');
   Array.from(inp.files).forEach(function(f) {
     if (!f.type.startsWith('image/')) return;
-    var r = new FileReader();
-    r.onload = function(e) {
+    compressImage(f, 800, 800, 0.7, function(base64) {
       var wrap = document.createElement('div'); wrap.className = 'img-wrap';
-      var img = document.createElement('img'); img.src = e.target.result;
+      var img = document.createElement('img'); img.src = base64;
+      img.dataset.base64 = base64;
       var btn = document.createElement('button'); btn.className = 'del-btn'; btn.textContent = '×';
       btn.onclick = function() { wrap.remove(); if (!grid.children.length) clearBtn.style.display = 'none'; };
       wrap.appendChild(img); wrap.appendChild(btn); grid.appendChild(wrap);
       clearBtn.style.display = 'inline-block';
-    };
-    r.readAsDataURL(f);
+    });
   });
   inp.value = '';
 }
@@ -560,6 +577,7 @@ function buildSummary() {
 }
 
 function submitForm() {
+  var photos = Array.from(document.querySelectorAll('#prev-grid .img-wrap img')).map(function(img){ return img.dataset.base64; }).filter(Boolean);
   var entry = {
     timestamp: Date.now(),
     date: document.getElementById('work-date').value,
@@ -573,7 +591,8 @@ function submitForm() {
     solution: document.getElementById('sol-text').value,
     learning: document.getElementById('learning').value,
     plan: document.getElementById('plan').value,
-    rating: st.rating
+    rating: st.rating,
+    photos: photos
   };
   var btn = document.getElementById('submit-btn');
   btn.textContent = '⏳ กำลังบันทึก...'; btn.disabled = true;
@@ -650,9 +669,15 @@ function openDetail(id) {
   if (!r) return;
   document.getElementById('modal-title').textContent = 'G'+r.group+' — '+(r.name||'').replace('น.ส.','')+' ('+r.date+')';
   var rows = [['ชื่อ',r.name],['กลุ่ม','กลุ่มที่ '+r.group],['แผนก',r.dept],['เวลา',(r.timeIn||'—')+' → '+(r.timeOut||'—')],['สถานะ',r.status],['งานที่ทำ',r.task],['เครื่องมือ',r.tools],['ปัญหา',r.hasProblem?'มีปัญหา':'ไม่มี'],['รายละเอียด',r.problem||'—'],['วิธีแก้',r.solution||'—'],['เรียนรู้',r.learning],['แผน',r.plan||'—'],['ดาว',r.rating?'★'.repeat(r.rating)+' ('+r.rating+'/5)':'—']];
+  var photoHtml = '';
+  if (r.photos && r.photos.length) {
+    photoHtml = '<div class="mrow"><div class="mk">ภาพถ่าย</div><div class="mv"><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">' +
+      r.photos.map(function(p){ return '<img src="'+p+'" style="width:80px;height:80px;border-radius:8px;object-fit:cover;border:1px solid #e8ecf2;cursor:pointer" onclick="window.open(this.src)">'; }).join('') +
+      '</div></div></div>';
+  }
   document.getElementById('modal-body').innerHTML = rows.filter(function(x){ return x[1]; }).map(function(x){
     return '<div class="mrow"><div class="mk">'+x[0]+'</div><div class="mv">'+String(x[1]).replace(/\n/g,'<br>')+'</div></div>';
-  }).join('');
+  }).join('') + photoHtml;
   document.getElementById('modal').classList.add('on');
 }
 
