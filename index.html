@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, push, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+import { getDatabase, ref, push, onValue, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 const firebaseConfig = {
   apiKey:"AIzaSyCEMto958CwS9WskTT5llnSrbunT8mtS-Q",
   authDomain:"internship-nscd.firebaseapp.com",
@@ -19,7 +19,7 @@ const firebaseConfig = {
 };
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
-window._db=db; window._ref=ref; window._push=push; window._onValue=onValue;
+window._db=db; window._ref=ref; window._push=push; window._onValue=onValue; window._remove=remove;
 window._fbReady=true;
 document.dispatchEvent(new Event('fb-ready'));
 </script>
@@ -669,7 +669,10 @@ function renderDash(){
     const pr=r.hasProblem?'<span class="pill pill-prob">มี</span>':'<span class="pill pill-ok">ไม่มี</span>';
     const sw=r.rating?'<span class="stars-disp">'+'★'.repeat(r.rating)+'</span>':'—';
     return `<tr><td>${dt}</td><td>${r.dept||'—'}</td><td>${gp}</td><td>${nm}</td><td style="font-size:12px">${tm}</td><td>${st2}</td><td>${pr}</td><td>${sw}</td>
-      <td><button onclick='openDetail(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="padding:4px 12px;border:1.5px solid var(--line);border-radius:6px;background:var(--white);cursor:pointer;font-size:12px;font-weight:600">ดู</button></td></tr>`;
+      <td style="white-space:nowrap">
+        <button onclick='openDetail(${JSON.stringify(r).replace(/'/g,"&#39;")})' style="padding:4px 12px;border:1.5px solid var(--line);border-radius:6px;background:var(--white);cursor:pointer;font-size:12px;font-weight:600;margin-right:4px">ดู</button>
+        <button onclick='confirmDelete("${r.id}")' style="padding:4px 10px;border:1.5px solid #fca5a5;border-radius:6px;background:#fff5f5;color:#e53e3e;cursor:pointer;font-size:12px;font-weight:600">ลบ</button>
+      </td></tr>\`;
   }).join('');
 }
 
@@ -685,6 +688,34 @@ function openDetail(r){
   const rows=[['ชื่อ',r.name],['กลุ่ม','กลุ่มที่ '+r.group],['แผนก',r.dept],['เวลา',`${r.timeIn||'—'} → ${r.timeOut||'—'}`],['สถานะ',r.status],['งานที่ทำ',r.task],['เครื่องมือ',r.tools],['ปัญหา',r.hasProblem?'มีปัญหา':'ไม่มี'],['รายละเอียด',r.problem||'—'],['วิธีแก้',r.solution||'—'],['เรียนรู้',r.learning],['แผน',r.plan||'—'],['ดาว',r.rating?'★'.repeat(r.rating)+` (${r.rating}/5)`:'—']];
   document.getElementById('modal-body').innerHTML=rows.filter(([,v])=>v).map(([k,v])=>`<div class="mrow"><div class="mk">${k}</div><div class="mv">${(v+'').replace(/\n/g,'<br>')}</div></div>`).join('');
   document.getElementById('modal').classList.add('on');
+}
+function confirmDelete(id){
+  const wrap=document.createElement('div');
+  wrap.id='del-modal';
+  wrap.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px;';
+  wrap.innerHTML=`<div style="background:#fff;border-radius:14px;padding:28px 24px;width:300px;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:center;">
+    <div style="font-size:28px;margin-bottom:10px;">🗑️</div>
+    <div style="font-size:15px;font-weight:700;color:#1e2534;margin-bottom:6px;">ลบข้อมูลนี้?</div>
+    <div style="font-size:13px;color:#8a96a8;margin-bottom:20px;">ไม่สามารถกู้คืนได้หลังลบแล้ว</div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="document.getElementById('del-modal').remove()" style="flex:1;padding:10px;background:#fff;border:1.5px solid #e8ecf2;border-radius:9px;font-size:13px;color:#4a5568;cursor:pointer;font-family:inherit;">ยกเลิก</button>
+      <button onclick="deleteRecord('${id}')" style="flex:1;padding:10px;background:#e53e3e;border:none;border-radius:9px;font-size:13px;font-weight:700;color:#fff;cursor:pointer;font-family:inherit;">ลบ</button>
+    </div>
+  </div>`;
+  document.body.appendChild(wrap);
+}
+function deleteRecord(id){
+  const modal=document.getElementById('del-modal');
+  if(modal)modal.remove();
+  if(window._fbReady){
+    window._remove(window._ref(window._db,'internship_logs/'+id))
+      .then(()=>toast('✅ ลบข้อมูลเรียบร้อยแล้ว'))
+      .catch(err=>toast('❌ ลบไม่สำเร็จ: '+err.message));
+  } else {
+    allRecords=allRecords.filter(r=>r.id!==id);
+    renderDash();
+    toast('✅ ลบข้อมูลแล้ว (Demo mode)');
+  }
 }
 function closeModal(){document.getElementById('modal').classList.remove('on')}
 
