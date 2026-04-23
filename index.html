@@ -136,7 +136,12 @@ textarea{resize:vertical;min-height:80px;line-height:1.65}
 .uparea:hover{border-color:var(--g2);background:var(--g2l)}
 .uparea .uico{font-size:22px}.uparea p{font-size:12px;color:var(--ink3);margin-top:4px}
 .prevg{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
-.prevg img{width:64px;height:64px;border-radius:8px;object-fit:cover;border:1px solid var(--line)}
+.prevg .img-wrap{position:relative;width:72px;height:72px}
+.prevg .img-wrap img{width:72px;height:72px;border-radius:8px;object-fit:cover;border:1px solid var(--line);display:block}
+.prevg .img-wrap .del-btn{position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:#e53e3e;color:#fff;border:none;cursor:pointer;font-size:13px;line-height:1;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.prevg .img-wrap .del-btn:hover{background:#c53030}
+.clear-photos{margin-top:8px;padding:5px 12px;border:1.5px solid var(--line);border-radius:6px;background:var(--white);color:var(--ink3);font-size:12px;cursor:pointer;font-family:inherit;display:none}
+.clear-photos:hover{border-color:var(--red);color:var(--red)}
 .stars{display:flex;align-items:center;gap:4px}
 .star{font-size:24px;cursor:pointer;color:#e2e8f0;line-height:1;transition:color .15s;user-select:none}
 .star.on{color:#f6c90e}
@@ -533,12 +538,25 @@ function addTool(){
 function rmtool(btn){btn.parentElement.remove()}
 function prevFiles(inp){
   const grid=document.getElementById('prev-grid');
+  const clearBtn=document.getElementById('clear-photos-btn');
   [...inp.files].forEach(f=>{
     if(!f.type.startsWith('image/'))return;
     const r=new FileReader();
-    r.onload=e=>{const img=document.createElement('img');img.src=e.target.result;grid.appendChild(img)};
+    r.onload=e=>{
+      const wrap=document.createElement('div');wrap.className='img-wrap';
+      const img=document.createElement('img');img.src=e.target.result;
+      const btn=document.createElement('button');btn.className='del-btn';btn.textContent='×';
+      btn.onclick=()=>{wrap.remove();if(!grid.children.length)clearBtn.style.display='none';};
+      wrap.appendChild(img);wrap.appendChild(btn);grid.appendChild(wrap);
+      clearBtn.style.display='inline-block';
+    };
     r.readAsDataURL(f);
   });
+  inp.value='';
+}
+function clearAllPhotos(){
+  document.getElementById('prev-grid').innerHTML='';
+  document.getElementById('clear-photos-btn').style.display='none';
 }
 function setProb(has){
   st.prob=has;
